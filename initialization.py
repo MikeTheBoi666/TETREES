@@ -120,6 +120,8 @@ def compute_normalized_kvi(services, resources, CI, signs, feature_range=(0.1, 1
             )
             #l'ho commentata solo perché l'ho messa come check dei valori normalizzati
             #print("key:", key, "norm_kvi:", norm_kvi_matrix[i])
+            #prova
+            #ciao
  
     return (
         normalized_kvi,
