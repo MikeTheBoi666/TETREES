@@ -2,44 +2,29 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
 
-def normalize_single_row(kvi_service, kvi_service_req, resources, index_res, signs, kvi_values):
-    # kvis_service are the 3 kvis of the i-th service requested, threshold output of the LLM
-    row = np.zeros(len(kvi_service))  # row for the 3 kvi of the i-th service offered by the index_res-th resource
-    maximum = np.max(kvi_values, axis=0)
-    minimum = np.min(kvi_values, axis=0)
-
-    for index, attribute in enumerate(kvi_service):
-        for requested in kvi_service_req:
-            exposed_kvi = resources[index_res].kvi_resource[
-                index]  # vector offered by the resource
-            # index_res-th
-            max_val = maximum[index]  # value
-            # max for that attributed evaluated on all resources for that service
-            min_val = minimum[index]
-
-            if exposed_kvi == attribute:
-                row[index] = 1  # if the value is exactly the one requested
-
-            else:
-                if signs[index] == 1:  # benefit, the higher the better
-                    if max_val == requested:  # no zero division
-                        row[index] = 1
-                    elif max_val == min_val:  # if all values are equal, set = 1
-                        row[index] = 1
-                    else:
-                        row[index] = 1 - (max_val - exposed_kvi) / (max_val - requested)
-
-                else:  # Cost: the less the better
-                    if min_val == requested:  # no zero division
-                        row[index] = 1
-                    elif max_val == min_val:  # if all values are equal, set = 1
-                        row[index] = 1
-                    else:
-                        row[index] = 1 - (exposed_kvi - min_val) / (requested - min_val)
-
-
+def normalize_single_row(kvi_service, kvi_service_req, index_res, signs, kvi_values): 
+    row = np.zeros(len(kvi_service)) 
+    maximum = np.max(kvi_values, axis=0) 
+    minimum = np.min(kvi_values, axis=0) 
+    for index, attribute in enumerate(kvi_service): 
+        for requested in kvi_service_req: 
+            exposed_kvi = kvi_values[index_res][index]   
+            max_val = maximum[index] 
+            min_val = minimum[index] 
+            if exposed_kvi == attribute: 
+                row[index] = 1 
+            else: 
+                if signs[index] == 1:  # benefit 
+                    if max_val == requested or max_val == min_val: 
+                        row[index] = 1 
+                    else: 
+                        row[index] = 1 - (max_val - exposed_kvi) / (max_val - requested) 
+                else:  # cost 
+                    if min_val == requested or max_val == min_val: 
+                        row[index] = 1 
+                    else: 
+                        row[index] = 1 - (exposed_kvi - min_val) / (requested - min_val) 
     return np.abs(row)
-
 
 # function computation time in h
 def compute_computation_time(service, resource):
@@ -66,39 +51,83 @@ def compute_failure_probability(computation_time, resource):
     return F_rn_0 * computation_time * resource.lambda_services_per_day
 
 # function to compute indicators for each (service, resource) couple, normalization and weighted sum to get V(X)
-def compute_normalized_kvi(services, resources, CI, signs):
-
+def compute_normalized_kvi(services, resources, CI, signs, feature_range=(0.1, 1.0)):
     normalized_kvi = {}
     weighted_sum_kvi = {}
     energy_sustainability_values = {}
     trustworthiness_values = {}
     failure_probability_values = {}
-
-    kvi_values = []  # list of future lists, length = 3
-
-    for j, service in enumerate(services):
-
-        # Compute all KVIs
-        for n, resource in enumerate(resources):
-
-            trustworthiness = compute_trustworthiness(service, resource)
-            energy_sustainability = resource.carbon_offset - float(compute_energy_sustainability(resource, compute_computation_time(service, resource),
-                                                                             CI))
-            failure_probability = float(compute_failure_probability(compute_computation_time(service, resource), resource))
-            energy_sustainability_values[(resource.id, service.id)] = energy_sustainability * service.weights_kvi[2]
-            trustworthiness_values[(resource.id, service.id)] = trustworthiness * service.weights_kvi[0]
-            failure_probability_values[(resource.id, service.id)] = failure_probability * service.weights_kvi[1]
-
-            temp_kvi = [trustworthiness, failure_probability, energy_sustainability]
-            kvi_values.append(temp_kvi)
-
-    # Normalization
-    for j, service in enumerate(services):
-        for n, resource in enumerate(resources):
-            v_x = np.dot(service.weights_kvi, kvi_values[j+n])
-            weighted_sum_kvi[(resource.id, service.id)] = float(v_x)
-
-    return normalized_kvi, weighted_sum_kvi, energy_sustainability_values, trustworthiness_values, failure_probability_values
+ 
+    signs = np.array(signs, dtype=int) 
+    low, high = feature_range
+ 
+    for service in services:
+        raw_kvi_matrix = []
+        keys = []
+ 
+        # calcolo KVI per tutte le risorse del servizio 
+        for resource in resources:
+            computation_time = compute_computation_time(service, resource)
+ 
+            trustworthiness = float(compute_trustworthiness(service, resource))
+            energy_sustainability = float(
+                resource.carbon_offset
+                - compute_energy_sustainability(resource, computation_time, CI)
+            )
+            failure_probability = float(
+                compute_failure_probability(computation_time, resource)
+            )
+ 
+            raw_kvi_matrix.append([
+                trustworthiness,
+                failure_probability,
+                energy_sustainability
+            ])
+            keys.append((resource.id, service.id))
+ 
+            # 3 dizionari pesati  
+            trustworthiness_values[(resource.id, service.id)] = (
+                trustworthiness * service.weights_kvi[0]
+            )
+            failure_probability_values[(resource.id, service.id)] = (
+                failure_probability * service.weights_kvi[1]
+            )
+            energy_sustainability_values[(resource.id, service.id)] = (
+                energy_sustainability * service.weights_kvi[2]
+            )
+ 
+        raw_kvi_matrix = np.asarray(raw_kvi_matrix, dtype=float)
+ 
+        # Normalizzazione in (0.1, 1.0) per evitare zeri
+        scaler = MinMaxScaler(feature_range=feature_range, clip=True)
+        norm_kvi_matrix = scaler.fit_transform(raw_kvi_matrix)
+ 
+        # assegna max se col è costante
+        constant_cols = np.ptp(raw_kvi_matrix, axis=0) == 0
+        norm_kvi_matrix[:, constant_cols] = high
+ 
+        # considerazione differente tra kvi costi/benefici sulla base degli 1 e -1
+        cost_cols = signs == -1
+        norm_kvi_matrix[:, cost_cols] = low + high - norm_kvi_matrix[:, cost_cols]
+ 
+        # clip che forse può essere tolto, lasciamolo al momento come check aggiuntivo
+        norm_kvi_matrix = np.clip(norm_kvi_matrix, low, high)
+ 
+        for i, key in enumerate(keys):
+            normalized_kvi[key] = norm_kvi_matrix[i]
+            weighted_sum_kvi[key] = float(
+                np.dot(service.weights_kvi, norm_kvi_matrix[i])
+            )
+            #l'ho commentata solo perché l'ho messa come check dei valori normalizzati
+            #print("key:", key, "norm_kvi:", norm_kvi_matrix[i])
+ 
+    return (
+        normalized_kvi,
+        weighted_sum_kvi,
+        energy_sustainability_values,
+        trustworthiness_values,
+        failure_probability_values
+    )
 
 def normalize_single_row_kpi(kpi_service, kpi_service_req, resources, index_res, signs, kpi_values):
     row = np.zeros(len(kpi_service))  # row for the 3 kpis of the i-th service offered by the index_res-th resource
