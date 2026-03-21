@@ -258,7 +258,7 @@ if __name__ == '__main__':
         chosen_index = i % len(demand_values)
 
         service = Service(i, 0, 0, 0,0, 0, 0, 0,
-                          0, weights_kpi, weights_kvi, 0)
+                          0, weights_kpi, weights_kvi, 0,0,0)
 
         deadline = deadlines[chosen_index]
         plr = plrs[chosen_index]
