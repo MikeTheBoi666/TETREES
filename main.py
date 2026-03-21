@@ -11,7 +11,7 @@ from optimization import *
 class Service:
 
     def __init__(self, id, demand, min_kpi, min_kvi, impact, kpi_service_req, kvi_service_req, kpi_service, kvi_service,
-                 weights_kpi, weights_kvi, size):
+                 weights_kpi, weights_kvi, size,privacy_sensitivity=0.5, intent_priority=0.5):
         self.id = id
         self.demand = demand
         self.min_kpi = 0  # valore minimo globale tollerabile kpi
@@ -24,6 +24,8 @@ class Service:
         self.weights_kpi = np.array(weights_kpi)  # per calcolo kpi globale
         self.weights_kvi = np.array(weights_kvi)  # per calcolo kvi globale
         self.size = size
+        self.privacy_sensitivity=privacy_sensitivity
+        self.intent_priority=intent_priority
         # self.risk_appetite = risk_appetite
 
     # property            # first decorate the getter method
@@ -62,6 +64,12 @@ class Service:
 
     def get_size(self):
         return self.size
+    
+    def get_privacy_sensitivity(self):
+        return self.privacy_sensitivity
+
+    def get_intent_priority(self):
+        return self.intent_priority
 
 
     def set_id(self, value):
@@ -100,13 +108,20 @@ class Service:
     def set_size(self, value):
         self.size = value
 
+    def set_privacy_sensitivity(self, value):
+        self.privacy_sensitivity = value
+
+    def set_intent_priority(self, value):
+        self.intent_priority = value
+
     # def set_risk_appetite(self, value):
     #     self.risk_appetite = value
 
 
+
 class Resource:
     def __init__(self, id, availability, kpi_resource, kvi_resource, carbon_offset, P_c, u_c, P_m, fcp, N0,
-                 lambda_failure, lambda_services_per_day, likelihood):
+                 lambda_failure, lambda_services_per_day, likelihood,predicted_ai_risk=0.5, forecast_ai_risk=0.5, privacy_cost=0.5):
         self.id = id
         self.availability = availability
         self.kpi_resource = np.array(kpi_resource)
@@ -120,6 +135,9 @@ class Resource:
         self.lambda_failure = lambda_failure
         self.lambda_services_per_day = lambda_services_per_day
         self.likelihood = likelihood
+        self.predicted_ai_risk = predicted_ai_risk
+        self.forecast_ai_risk = forecast_ai_risk
+        self.privacy_cost = privacy_cost
 
     def get_availability(self):
         return self.availability
@@ -156,6 +174,15 @@ class Resource:
 
     def get_likelihood(self):
         return self.likelihood
+    
+    def get_predicted_ai_risk(self):
+        return self.predicted_ai_risk
+
+    def get_forecast_ai_risk(self):
+        return self.forecast_ai_risk
+
+    def get_privacy_cost(self):
+        return self.privacy_cost
 
     def set_availability(self, value):
         self.availability = value
@@ -193,6 +220,15 @@ class Resource:
     def set_likelihood(self, value):
         self.likelihood = value
 
+    def set_predicted_ai_risk(self, value):
+        self.predicted_ai_risk = value
+
+    def set_forecast_ai_risk(self, value):
+        self.forecast_ai_risk = value
+
+    def set_privacy_cost(self, value):
+        self.privacy_cost = value
+
 # Inizialization of service categories and resources information
 
 if __name__ == '__main__':
@@ -202,7 +238,7 @@ if __name__ == '__main__':
     delta = 0.1
     num_resources = [80]
     weights_kpi = [0.2, 0.5, 0.3]  # Deadline, datarate, PLR, respectively
-    weights_kvi = [0.8, 0.1, 0.1]  # Trustworthiness, Inclusiveness, and Environmental Sustainability, respectively
+    weights_kvi = [0.7, 0.1, 0.1, 0.1]  # Trustworthiness, Inclusiveness, and Environmental Sustainability, respectively
 
     deadlines = [0.002, 0.5, 1, 10, 15]
     deadlines_req = [0.02, 0.6, 1.2, 50]
@@ -213,6 +249,8 @@ if __name__ == '__main__':
     sizes = [600e6, 1e9, 1e9, 1.2e9]  # Mb
     demand_values = [2, 4, 4, 5]
     impact_values = [0.25, 0.5, 0.75, 1]
+    privacy_sensitivity_values = [0.3, 0.5, 0.8, 0.95]
+    intent_priority_values = [0.2, 0.4, 0.7, 0.9]
 
 
     services = []
@@ -244,12 +282,15 @@ if __name__ == '__main__':
         service.set_demand(demand_values[chosen_index])
         service.set_impact(impact)
         service.set_size(sizes[chosen_index])
+        
+        service.set_privacy_sensitivity(privacy_sensitivity_values[chosen_index])
+        service.set_intent_priority(intent_priority_values[chosen_index])
 
         services.append(service)
 
         print(f"Service id: {services[i].id}, {services[i].demand}, {services[i].min_kpi}, {services[i].impact}, "
               f"{services[i].kpi_service}, {services[i].kpi_service_req}, {services[i].kvi_service}, {services[i].kvi_service_req}, "
-              f"{services[i].size}")
+              f"{services[i].size}, {services[i].privacy_sensitivity}, {services[i].intent_priority}")
 
 
     for num_services in num_services_list:
@@ -332,6 +373,15 @@ if __name__ == '__main__':
                     deadline_off = 0.01
                     data_rate_off = 250.0
                     plr_off_res = 10.0
+                #Altro modo di set
+               # if resource.id < 20:
+               #     resource.set_predicted_ai_risk(0.2)
+               #     resource.set_forecast_ai_risk(0.25)
+               #     resource.set_privacy_cost(0.1)
+               # else:
+               #     resource.set_predicted_ai_risk(0.7)
+               #     resource.set_forecast_ai_risk(0.75)
+               #     resource.set_privacy_cost(0.3)
 
                 resource.set_availability(availability_value)
                 resource.set_kpi_resource([deadline_off, data_rate_off, plr_off_res])
@@ -343,6 +393,10 @@ if __name__ == '__main__':
                 resource.set_lambda_failure(lambda_failure_value)
                 resource.set_lambda_services_per_day(lambda_services_per_day_value)
                 resource.set_likelihood(likelihood_value)
+
+                resource.set_predicted_ai_risk(np.random.uniform(0.1, 0.9))
+                resource.set_forecast_ai_risk(np.random.uniform(0.1, 0.9))
+                resource.set_privacy_cost(np.random.uniform(0.1, 0.5))
 
                 resources.append(resource)
 
@@ -361,7 +415,7 @@ if __name__ == '__main__':
                     print(computation_time)
 
             # TIS:  Trustworthiness, Inclusiveness, and Environmental Sustainability
-            normalized_kvi, weighted_sum_kvi, energy_sustainability_values, trustworthiness_values, failure_probability_values = compute_normalized_kvi(services, resources, CI=475, signs=[1, -1, -1])  #
+            normalized_kvi, weighted_sum_kvi, energy_sustainability_values, trustworthiness_values, failure_probability_values = compute_normalized_kvi(services, resources, CI=475, signs=[1, -1, -1, -1])  #
 
             normalized_kpi, weighted_sum_kpi = compute_normalized_kpi(services, resources, signs=[-1, 1, -1])  # latenza, data rate e plr
 

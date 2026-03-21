@@ -26,6 +26,54 @@ def normalize_single_row(kvi_service, kvi_service_req, index_res, signs, kvi_val
                         row[index] = 1 - (exposed_kvi - min_val) / (requested - min_val) 
     return np.abs(row)
 
+# function KVI AI risk
+def compute_ai_risk(service, resource, rho_min=0.2, rho_max=1.0, beta=0.3):
+    """
+    Restituisce il nuovo KVI di AI risk per la coppia (service, resource):
+        L_ij = rho_i * r_hat_ij
+
+    Più il valore è alto, maggiore è il rischio AI associato all'allocazione.
+    """
+
+    # --- Parametri del servizio (paper: s_t, I_t) ---
+    # Sensibilità privacy della richiesta
+    privacy_sensitivity = np.clip(getattr(service, "privacy_sensitivity", service.impact), 0, 1)
+
+    # Priorità / criticità dell'intento
+    intent_priority = np.clip(getattr(service, "intent_priority", privacy_sensitivity), 0, 1)
+
+    # Modulazione intent-driven: rho_i
+    rho_i = rho_min + (rho_max - rho_min) * intent_priority
+
+    # --- Parametri della risorsa (paper: a_hat_t, c_t(x)) ---
+    # Rischio AI predetto sulla risorsa
+    predicted_ai_risk = np.clip(getattr(resource, "predicted_ai_risk", resource.likelihood), 0, 1)
+
+    # Rischio AI previsto nel look-ahead window
+    forecast_ai_risk = np.clip(getattr(resource, "forecast_ai_risk", predicted_ai_risk), 0, 1)
+
+    # Costo privacy della risorsa
+    # fallback: proxy basato su carico richiesto / capacità giornaliera
+    privacy_cost = np.clip(getattr(resource,"privacy_cost",service.size / max(resource.fpc * resource.lambda_services_per_day, 1)),0,1)
+
+    # --- Costruzione di r_hat_ij ---
+    # componente rischio base: servizio critico su risorsa esposta
+    base_risk = privacy_sensitivity * predicted_ai_risk
+
+    # componente previsionale (prediction-augmented)
+    forecast_component = beta * forecast_ai_risk
+
+    # componente di costo/privacy budget
+    budget_component = privacy_sensitivity * privacy_cost
+
+    # rischio nominale complessivo
+    r_hat_ij = np.clip((1 - beta) * base_risk + forecast_component + budget_component,0,1)
+
+    # --- Indicatore finale del nuovo KVI ---
+    L_ij = rho_i * r_hat_ij
+
+    return float(L_ij)
+
 # function computation time in h
 def compute_computation_time(service, resource):
     return service.size * 1000 / resource.fpc
@@ -77,11 +125,13 @@ def compute_normalized_kvi(services, resources, CI, signs, feature_range=(0.1, 1
             failure_probability = float(
                 compute_failure_probability(computation_time, resource)
             )
+            ai_risk = float(compute_ai_risk(service, resource))
  
             raw_kvi_matrix.append([
                 trustworthiness,
                 failure_probability,
-                energy_sustainability
+                energy_sustainability,
+                ai_risk
             ])
             keys.append((resource.id, service.id))
  

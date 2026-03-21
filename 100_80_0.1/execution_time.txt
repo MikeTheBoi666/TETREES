@@ -1,1 +1,1 @@
-Services: 100, Time: 38.744101 sec
+Services: 100, Time: 71.842360 sec
