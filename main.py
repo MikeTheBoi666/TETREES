@@ -238,7 +238,7 @@ if __name__ == '__main__':
     delta = 0.1
     num_resources = [80]
     weights_kpi = [0.2, 0.5, 0.3]  # Deadline, datarate, PLR, respectively
-    weights_kvi = [0.7, 0.1, 0.1, 0.1]  # Trustworthiness, Inclusiveness, and Environmental Sustainability, respectively
+    weights_kvi = [0.6, 0.1, 0.1, 0.2]  # Trustworthiness, Inclusiveness, and Environmental Sustainability, respectively
 
     deadlines = [0.002, 0.5, 1, 10, 15]
     deadlines_req = [0.02, 0.6, 1.2, 50]
@@ -249,8 +249,8 @@ if __name__ == '__main__':
     sizes = [600e6, 1e9, 1e9, 1.2e9]  # Mb
     demand_values = [2, 4, 4, 5]
     impact_values = [0.25, 0.5, 0.75, 1]
-    privacy_sensitivity_values = [0.3, 0.5, 0.8, 0.95]
-    intent_priority_values = [0.2, 0.4, 0.7, 0.9]
+    privacy_sensitivity_values = [0.2, 0.5, 0.8, 0.95]
+    intent_priority_values = [0.2, 0.4, 0.7, 0.95]
 
 
     services = []
@@ -373,15 +373,23 @@ if __name__ == '__main__':
                     deadline_off = 0.01
                     data_rate_off = 250.0
                     plr_off_res = 10.0
-                #Altro modo di set
-               # if resource.id < 20:
-               #     resource.set_predicted_ai_risk(0.2)
-               #     resource.set_forecast_ai_risk(0.25)
-               #     resource.set_privacy_cost(0.1)
-               # else:
-               #     resource.set_predicted_ai_risk(0.7)
-               #     resource.set_forecast_ai_risk(0.75)
-               #     resource.set_privacy_cost(0.3)
+                #risorse molto performanti ma più esposte al rischio AI
+                if resource.fpc >= 80 and resource.availability >= 35:
+                    resource.set_predicted_ai_risk(np.random.uniform(0.65, 0.9))
+                    resource.set_forecast_ai_risk(np.random.uniform(0.6, 0.85))
+                    resource.set_privacy_cost(np.random.uniform(0.3, 0.5))
+
+                # risorse intermedie
+                elif resource.fpc >= 55 and resource.availability >= 20:
+                    resource.set_predicted_ai_risk(np.random.uniform(0.35, 0.65))
+                    resource.set_forecast_ai_risk(np.random.uniform(0.3, 0.6))
+                    resource.set_privacy_cost(np.random.uniform(0.2, 0.35))
+
+                # risorse meno performanti ma più sicure
+                else:
+                    resource.set_predicted_ai_risk(np.random.uniform(0.1, 0.35))
+                    resource.set_forecast_ai_risk(np.random.uniform(0.1, 0.3))
+                    resource.set_privacy_cost(np.random.uniform(0.05, 0.2))
 
                 resource.set_availability(availability_value)
                 resource.set_kpi_resource([deadline_off, data_rate_off, plr_off_res])
@@ -394,9 +402,9 @@ if __name__ == '__main__':
                 resource.set_lambda_services_per_day(lambda_services_per_day_value)
                 resource.set_likelihood(likelihood_value)
 
-                resource.set_predicted_ai_risk(np.random.uniform(0.1, 0.9))
-                resource.set_forecast_ai_risk(np.random.uniform(0.1, 0.9))
-                resource.set_privacy_cost(np.random.uniform(0.1, 0.5))
+                #resource.set_predicted_ai_risk(np.random.uniform(0.1, 0.9))
+                #resource.set_forecast_ai_risk(np.random.uniform(0.1, 0.9))
+                #resource.set_privacy_cost(np.random.uniform(0.1, 0.5))
 
                 resources.append(resource)
 

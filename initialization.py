@@ -50,7 +50,7 @@ def compute_ai_risk(service, resource, rho_min=0.2, rho_max=1.0, beta=0.3):
     predicted_ai_risk = np.clip(getattr(resource, "predicted_ai_risk", resource.likelihood), 0, 1)
 
     # Rischio AI previsto nel look-ahead window
-    forecast_ai_risk = np.clip(getattr(resource, "forecast_ai_risk", predicted_ai_risk), 0, 1)
+    #forecast_ai_risk = np.clip(getattr(resource, "forecast_ai_risk", predicted_ai_risk), 0, 1)
 
     # Costo privacy della risorsa
     # fallback: proxy basato su carico richiesto / capacità giornaliera
@@ -58,16 +58,16 @@ def compute_ai_risk(service, resource, rho_min=0.2, rho_max=1.0, beta=0.3):
 
     # --- Costruzione di r_hat_ij ---
     # componente rischio base: servizio critico su risorsa esposta
-    base_risk = privacy_sensitivity * predicted_ai_risk
+    #base_risk = privacy_sensitivity * predicted_ai_risk
 
     # componente previsionale (prediction-augmented)
-    forecast_component = beta * forecast_ai_risk
+    #forecast_component = beta * forecast_ai_risk
 
     # componente di costo/privacy budget
-    budget_component = privacy_sensitivity * privacy_cost
+    #budget_component = privacy_sensitivity * privacy_cost
 
     # rischio nominale complessivo
-    r_hat_ij = np.clip((1 - beta) * base_risk + forecast_component + budget_component,0,1)
+    r_hat_ij = np.clip(privacy_sensitivity * predicted_ai_risk + privacy_sensitivity * privacy_cost,0,1)
 
     # --- Indicatore finale del nuovo KVI ---
     L_ij = rho_i * r_hat_ij
